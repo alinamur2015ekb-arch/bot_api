@@ -77,7 +77,7 @@ async def sroki(message: Message, state: FSMContext):
     await message.answer(f"Ищу {full1}")
     result = await yandex_api(full1)
     await message.answer(result)
-    
+    await state.clear()
 
 
 #факт
