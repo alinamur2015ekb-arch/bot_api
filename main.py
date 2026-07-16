@@ -31,7 +31,6 @@ dp.include_routers(
 async def main():
     bot = Bot(TOKEN)
     await dp.start_polling(bot) 
-    asyncio.create_task(pinger())
     asyncio.create_task(dp.start_polling(bot))
     app = web.Application()
     app.router.add_get('/', handle)
@@ -41,6 +40,7 @@ async def main():
     site = web.TCPSite(runner, '0.0.0.0', port, int(os.environ.get("PORT", 10000)))
     await site.start()
     print(f"Web server started on port {port}")
+    asyncio.create_task(pinger())
     await dp.start_polling(bot)
     
 if __name__ == "__main__":
