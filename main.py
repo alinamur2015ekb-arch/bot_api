@@ -35,8 +35,13 @@ async def main():
     asyncio.create_task(dp.start_polling(bot))
     app = web.Application()
     app.router.add_get('/', handle)
+    runner = web.AppRunner(app)
+    await runner.setup()
     port = int(os.environ.get("PORT", 10000))
-    web.run_app(app, host='0.0.0.0', port=port)
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    print(f"Web server started on port {port}")
+    await dp.start_polling(bot)
     
 if __name__ == "__main__":
     try:
