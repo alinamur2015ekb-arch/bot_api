@@ -28,9 +28,6 @@ dp.include_routers(
 async def main():
     bot = Bot(TOKEN)
     await dp.start_polling(bot) 
-    app = web.Application()
-    app.router.add_get('/', lambda r: web.Response(text='Bot is running'))
-    web.run_app(app, host='0.0.0.0', port=10000)
     asyncio.create_task(pinger())
     
 if __name__ == "__main__":
