@@ -1,6 +1,3 @@
 aiogram
 aiohttp
 python-dotenv
-os
-xml.etree
-xml
