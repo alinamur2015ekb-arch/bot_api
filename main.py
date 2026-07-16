@@ -17,9 +17,6 @@ async def pinger():
                 print(f"Ошибка пинга: {e}")
             await asyncio.sleep(600)
 
-async def on_startup(app):
-    asyncio.create_task(dp.start_polling(bot))
-
 async def handle(request):
     return web.Response(text="Bot is running")
     
@@ -35,11 +32,11 @@ async def main():
     bot = Bot(TOKEN)
     await dp.start_polling(bot) 
     asyncio.create_task(pinger())
+    asyncio.create_task(dp.start_polling(bot))
     app = web.Application()
-    app.on_startup.append(on_startup)
     app.router.add_get('/', handle)
     port = int(os.environ.get("PORT", 10000))
-    return web.run_app(app, host='0.0.0.0', port=port)
+    web.run_app(app, host='0.0.0.0', port=port)
     
 if __name__ == "__main__":
     try:
