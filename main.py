@@ -38,7 +38,7 @@ async def main():
     runner = web.AppRunner(app)
     await runner.setup()
     port = int(os.environ.get("PORT", 10000))
-    site = web.TCPSite(runner, '0.0.0.0', port)
+    site = web.TCPSite(runner, '0.0.0.0', port, int(os.environ.get("PORT", 10000)))
     await site.start()
     print(f"Web server started on port {port}")
     await dp.start_polling(bot)
