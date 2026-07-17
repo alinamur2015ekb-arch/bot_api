@@ -107,8 +107,7 @@ async def get_weather(city: str, period: str) -> str:
                     descs = [i['weather'][0]['description'] for i in items]
                     avg_temp = sum(temps) / len(temps)
                     main_desc = max(set(descs), key=descs.count)
-                    result.append(f"
-{date}: {avg_temp:.1f}°C, {main_desc}")
+                    result.append(f"{date}: {avg_temp:.1f}°C, {main_desc}")
                 
                 return " ".join(result)
 
