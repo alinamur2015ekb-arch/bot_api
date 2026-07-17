@@ -71,7 +71,6 @@ async def sroko(message: Message, state: FSMContext):
 async def sroki(message: Message, state: FSMContext):
     await state.set_data({"srok": message.text})
     data1 = await state.get_data()
-    await message.answer(data1)
     strana = data1.get('strana')
     srok = data1.get('srok')
     full1 = f"Погода {strana} на {srok}"
