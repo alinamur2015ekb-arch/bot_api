@@ -89,13 +89,13 @@ async def md(message: Message, state: FSMContext):
 
 @router.message(fakti.strana)
 async def s(message: Message, state: FSMContext):
-    await state.set_data({"strana": message.text})
+    await state.update_data(strana=message.text)
     await message.answer("Введите количество интересных фактов которые хотите узнать")
     await state.set_state(fakti.col)
 
 @router.message(fakti.col)
 async def r(message: Message, state: FSMContext):
-    await state.set_data({"col": message.text})
+    await state.update_data(col=message.text)
     data2 = await state.get_data()
     strana = data2.get('strana')
     col3 = data2.get('col')
@@ -114,14 +114,14 @@ async def cd(message: Message, state: FSMContext):
 
 @router.message(escursi.strana)
 async def sr(message: Message, state: FSMContext):
-    await state.set_data({"strana": message.text})
+    await state.update_data(strana=message.text)
     await message.answer("Введите количество эскурсий")
     await state.set_state(escursi.col)
 
 
 @router.message(escursi.col)
 async def o(message: Message, state: FSMContext):
-    await state.set_data({"col": message.text})
+    await state.update_data(col=message.text)
     data3 = await state.get_data()
     strana = data3.get('strana')
     col2 = data3.get('col')
@@ -139,20 +139,20 @@ async def md(message: Message, state: FSMContext):
 
 @router.message(cursi.vala)
 async def ro(message: Message, state: FSMContext):
-    await state.set_data({"vala": message.text})
+    await state.update_data(vala=message.text)
     await message.answer("Введите валюту из которой будете переводить")
     await state.set_state(cursi.valb)
 
 @router.message(cursi.valb)
 async def cm(message: Message, state: FSMContext):
-    await state.set_data({"valb": message.text})
+    await state.update_data(valb=message.text)
     await message.answer("Введите количество которые нужно перевести")
     await state.set_state(cursi.col)
 
 
 @router.message(cursi.col)
 async def sro(message: Message, state: FSMContext):
-    await state.set_data({"col": message.text})
+    await state.update_data(col=message.text)
     data4 = await state.get_data()
     vala = data4.get('vala')
     valb = data4.get('valb')
