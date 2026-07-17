@@ -17,8 +17,14 @@ async def pinger():
                 print(f"Ошибка пинга: {e}")
             await asyncio.sleep(600)
 
-async def handle(request):
-    return web.Response(text="Bot is running")
+async def health(request):
+    return web.Response(text="OK")
+
+def run_web():
+    app = web.Application()
+    app.router.add_get("/", health)
+    port = int(os.environ.get("PORT", 10000))
+    web.run_app(app, host="0.0.0.0", port=port)
     
 load_dotenv()
 TOKEN = os.getenv("token")
@@ -35,9 +41,9 @@ async def main():
     app = web.Application()
     app.router.add_get('/', handle)
     runner = web.AppRunner(app)
+     runner = web.AppRunner(web.Application())
     await runner.setup()
-    port = int(os.environ.get("PORT", 10000))
-    site = web.TCPSite(runner, '0.0.0.0', port, int(os.environ.get("PORT", 10000)))
+    site = web.TCPSite(runner, "0.0.0.0", int(os.environ.get("PORT", 10000)))
     await site.start()
     print(f"Web server started on port {port}")
     asyncio.create_task(pinger())
