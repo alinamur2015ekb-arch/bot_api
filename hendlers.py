@@ -39,10 +39,7 @@ async def wikipedia_search(query: str, limit: int = 3) -> str:
                 snippet = r['snippet'].replace('<span class="searchmatch">', '').replace('</span>', '')
                 facts.append(f"{title}: {snippet[:200]}...")
             
-            return "Результаты поиска:
-" + "
-
-".join(facts[:limit])
+            return "Результаты поиска: " + " ".join(facts[:limit])
 
 async def get_weather(city: str, period: str) -> str:
     """Получение погоды через OpenWeatherMap"""
@@ -119,8 +116,7 @@ async def get_weather(city: str, period: str) -> str:
                     result.append(f"
 {date}: {avg_temp:.1f}°C, {main_desc}")
                 
-                return "
-".join(result)
+                return " ".join(result)
 
 async def get_currency(amount: float, from_cur: str, to_cur: str) -> str:
     """Конвертация валют через ExchangeRate-API"""
