@@ -2,7 +2,7 @@ import os
 from aiogram import Router, F
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, CallbackQuery
-from .state import pogodai, fakti, escursi, cursi
+from state import pogodai, fakti, escursi, cursi
 from aiogram.fsm.context import FSMContext
 from dotenv import load_dotenv
 import aiohttp
