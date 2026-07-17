@@ -129,7 +129,7 @@ async def get_currency(amount: float, from_cur: str, to_cur: str) -> str:
                 f"Курс: 1 {from_cur.upper()} = {rate:.4f} {to_cur.upper()}"
             )
 
-@router.message(Command("start")
+@router.message(Command("start"))
 async def start(message: Message):
     await message.answer("Это бот для информации о разных странах")
     await message.answer("Команды: \n /pogoda - погода \n /fakt - факты \n /escurs - экскурсии \n /curs - курс валют")
