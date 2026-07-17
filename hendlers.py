@@ -73,18 +73,13 @@ async def get_weather(city: str, period: str) -> str:
                 humidity = data['main']['humidity']
                 wind = data['wind']['speed']
                 return (
-                    f" Погода в {city}:
-"
-                    f" Температура: {temp}°C (ощущается {feels}°C)
-"
-                    f"{desc.capitalize()}
-"
-                    f"Влажность: {humidity}%
-"
+                    f" Погода в {city}:"
+                    f" Температура: {temp}°C (ощущается {feels}°C)"
+                    f"{desc.capitalize()}"
+                    f"Влажность: {humidity}%"
                     f" Ветер: {wind} м/с"
                 )
     else:
-        # Прогноз на несколько дней
         url = "https://api.openweathermap.org/data/2.5/forecast"
         params = {
             "q": city,
@@ -99,7 +94,6 @@ async def get_weather(city: str, period: str) -> str:
                     return f"Город '{city}' не найден"
                 data = await resp.json()
                 
-                # Группируем по дням
                 daily = {}
                 for item in data['list']:
                     date = item['dt_txt'][:10]
@@ -107,7 +101,7 @@ async def get_weather(city: str, period: str) -> str:
                         daily[date] = []
                     daily[date].append(item)
                 
-                result = [f"🌤 Прогноз погоды в {city} на {days} дн.:"]
+                result = [f" Прогноз погоды в {city} на {days} дн.:"]
                 for date, items in list(daily.items())[:days]:
                     temps = [i['main']['temp'] for i in items]
                     descs = [i['weather'][0]['description'] for i in items]
@@ -131,21 +125,15 @@ async def get_currency(amount: float, from_cur: str, to_cur: str) -> str:
             rate = data['rates'][to_cur.upper()]
             result = amount * rate
             return (
-                f"💱 Конвертация валют:
-"
-                f"{amount} {from_cur.upper()} = {result:.2f} {to_cur.upper()}
-"
+                f" Конвертация валют:"
+                f"{amount} {from_cur.upper()} = {result:.2f} {to_cur.upper()}"
                 f"Курс: 1 {from_cur.upper()} = {rate:.4f} {to_cur.upper()}"
             )
 
 @router.message(CommandStart)
 async def start(message: Message):
     await message.answer("Это бот для информации о разных странах")
-    await message.answer("Команды:
- /pogoda - погода
- /fakt - факты
- /escurs - экскурсии
- /curs - курс валют")
+    await message.answer("Команды: \n /pogoda - погода \n /fakt - факты \n /escurs - экскурсии \n /curs - курс валют")
 
 @router.message(Command("pogoda"))
 async def cmd_pogoda(message: Message, state: FSMContext):
