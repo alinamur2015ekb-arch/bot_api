@@ -17,14 +17,6 @@ async def pinger():
                 print(f"Ошибка пинга: {e}")
             await asyncio.sleep(600)
 
-async def health(request):
-    return web.Response(text="OK")
-
-def run_web():
-    app = web.Application()
-    app.router.add_get("/", health)
-    port = int(os.environ.get("PORT", 10000))
-    web.run_app(app, host="0.0.0.0", port=port)
     
 load_dotenv()
 TOKEN = os.getenv("token")
@@ -38,14 +30,13 @@ async def main():
     bot = Bot(TOKEN)
     await dp.start_polling(bot) 
     asyncio.create_task(dp.start_polling(bot))
+    # Веб-сервер для Render
     app = web.Application()
-    app.router.add_get('/', handle)
+    app.router.add_get("/", lambda r: web.Response(text="OK"))
     runner = web.AppRunner(app)
-     runner = web.AppRunner(web.Application())
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", int(os.environ.get("PORT", 10000)))
     await site.start()
-    print(f"Web server started on port {port}")
     asyncio.create_task(pinger())
     await dp.start_polling(bot)
     
