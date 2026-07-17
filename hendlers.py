@@ -14,8 +14,11 @@ router = Router()
 
 
 async def wikipedia_search(query: str, limit: int = 3) -> str:
-    """Поиск фактов через Wikipedia API"""
+    """Поиск фактов через Wikipedia API с User-Agent"""
     url = "https://ru.wikipedia.org/w/api.php"
+    headers = {
+        "User-Agent": "CountryInfoBot/1.0 (https://t.me/your_bot; your_email@example.com)"
+    }
     params = {
         "action": "query",
         "format": "json",
@@ -24,22 +27,34 @@ async def wikipedia_search(query: str, limit: int = 3) -> str:
         "srlimit": limit,
         "utf8": 1
     }
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params) as resp:
-            if resp.status != 200:
-                return "Ошибка получения данных"
-            data = await resp.json()
-            results = data.get("query", {}).get("search", [])
-            if not results:
-                return "Ничего не найдено."
-            
-            facts = []
-            for r in results:
-                title = r['title']
-                snippet = r['snippet'].replace('<span class="searchmatch">', '').replace('</span>', '')
-                facts.append(f"{title}: {snippet[:200]}...")
-            
-            return "Результаты поиска: " + " ".join(facts[:limit])
+    async with aiohttp.ClientSession(headers=headers) as session:
+        try:
+            async with session.get(url, params=params, timeout=10) as resp:
+                if resp.status != 200:
+                    return f"Ошибка API: {resp.status}"
+                data = await resp.json()
+                
+                # Проверяем ошибки
+                if 'error' in data:
+                    return f"Ошибка Wikipedia: {data['error'].get('info', 'неизвестная ошибка')}"
+                
+                results = data.get("query", {}).get("search", [])
+                if not results:
+                    return "Ничего не найдено."
+                
+                facts = []
+                for r in results[:limit]:
+                    title = r['title']
+                    snippet = r['snippet'].replace('<span class="searchmatch">', '').replace('</span>', '')
+                    # Очищаем HTML сущности
+                    snippet = snippet.replace('&quot;', '"').replace('&amp;', '&')
+                    facts.append(f"🔹 {title}: {snippet[:200]}...")
+                
+                return "Результаты поиска:" + " ".join(facts)
+        except asyncio.TimeoutError:
+            return "Ошибка: таймаут запроса к Wikipedia"
+        except Exception as e:
+            return f"Ошибка получения данных: {str(e)}"
 
 async def get_weather(city: str, period: str) -> str:
     """Получение погоды через OpenWeatherMap"""
