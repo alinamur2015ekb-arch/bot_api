@@ -2,163 +2,257 @@ import os
 from aiogram import Router, F
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, CallbackQuery
-from state import pogodai, fakti, escursi, cursi
+from .state import pogodai, fakti, escursi, cursi
 from aiogram.fsm.context import FSMContext
 from dotenv import load_dotenv
 import aiohttp
-from xml.etree import ElementTree
+import json
 
 load_dotenv()
-API = os.getenv("api")
+API_WEATHER = os.getenv("api_weather") 
 router = Router()
-YANDEX_NS = "{http://yandex.com/xml}"
-async def yandex_api(query: str) -> str:
-        """Запрос к Яндекс.Поиск API (XML)"""
+
+
+async def wikipedia_search(query: str, limit: int = 3) -> str:
+    """Поиск фактов через Wikipedia API"""
+    url = "https://ru.wikipedia.org/w/api.php"
+    params = {
+        "action": "query",
+        "format": "json",
+        "list": "search",
+        "srsearch": query,
+        "srlimit": limit,
+        "utf8": 1
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, params=params) as resp:
+            if resp.status != 200:
+                return "Ошибка получения данных"
+            data = await resp.json()
+            results = data.get("query", {}).get("search", [])
+            if not results:
+                return "Ничего не найдено."
+            
+            facts = []
+            for r in results:
+                title = r['title']
+                snippet = r['snippet'].replace('<span class="searchmatch">', '').replace('</span>', '')
+                facts.append(f"{title}: {snippet[:200]}...")
+            
+            return "Результаты поиска:
+" + "
+
+".join(facts[:limit])
+
+async def get_weather(city: str, period: str) -> str:
+    """Получение погоды через OpenWeatherMap"""
+    if not API_WEATHER:
+        return "Ошибка: не указан API ключ для погоды"
     
-        url = "https://yandex.com/search/xml"
+    days = 1
+    if "3" in period or "три" in period:
+        days = 3
+    elif "5" in period or "пять" in period:
+        days = 5
+    elif "7" in period or "семь" in period or "недел" in period:
+        days = 7
+    
+    if days == 1:
+        url = "https://api.openweathermap.org/data/2.5/weather"
         params = {
-            "user": "Keksik25092015",
-            "key": API,
-            "query": query,
-            "lr": 1, 
-            "l10n": "ru",
-            "sortby": "rlv"
+            "q": city,
+            "appid": API_WEATHER,
+            "lang": "ru",
+            "units": "metric"
         }
-    
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, params=params) as response:
-                if response.status == 200:
-                    xml_text = await response.text()
-                    root = ElementTree.fromstring(xml_text)
+            async with session.get(url, params=params) as resp:
+                if resp.status != 200:
+                    return f"Город '{city}' не найден"
+                data = await resp.json()
+                temp = data['main']['temp']
+                feels = data['main']['feels_like']
+                desc = data['weather'][0]['description']
+                humidity = data['main']['humidity']
+                wind = data['wind']['speed']
+                return (
+                    f" Погода в {city}:
+"
+                    f" Температура: {temp}°C (ощущается {feels}°C)
+"
+                    f"{desc.capitalize()}
+"
+                    f"Влажность: {humidity}%
+"
+                    f" Ветер: {wind} м/с"
+                )
+    else:
+        # Прогноз на несколько дней
+        url = "https://api.openweathermap.org/data/2.5/forecast"
+        params = {
+            "q": city,
+            "appid": API_WEATHER,
+            "lang": "ru",
+            "units": "metric",
+            "cnt": days * 8  # каждые 3 часа
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as resp:
+                if resp.status != 200:
+                    return f"Город '{city}' не найден"
+                data = await resp.json()
                 
-                    results = []
-                    for doc in root.findall(f'{YANDEX_NS}.//doc'):
-                        title = doc.findtext(f'{YANDEX_NS}title', '')
-                        snippet = doc.findtext(f'{YANDEX_NS}headline', '') or doc.findtext('passages', '')
-                        url_result = doc.findtext(f'{YANDEX_NS}url', '')
-                    
-                        if title:
-                            results.append(f"🔹 {title} {snippet[:200]} {url_result}")
+                # Группируем по дням
+                daily = {}
+                for item in data['list']:
+                    date = item['dt_txt'][:10]
+                    if date not in daily:
+                        daily[date] = []
+                    daily[date].append(item)
                 
-                    if results:
-                        return "Результаты поиска: " + " ".join(results[:5])
-                    else:
-                        return "Ничего не найдено"
-                else:
-                    return f"Ошибка API: {response.status}"
+                result = [f"🌤 Прогноз погоды в {city} на {days} дн.:"]
+                for date, items in list(daily.items())[:days]:
+                    temps = [i['main']['temp'] for i in items]
+                    descs = [i['weather'][0]['description'] for i in items]
+                    avg_temp = sum(temps) / len(temps)
+                    main_desc = max(set(descs), key=descs.count)
+                    result.append(f"
+{date}: {avg_temp:.1f}°C, {main_desc}")
+                
+                return "
+".join(result)
 
+async def get_currency(amount: float, from_cur: str, to_cur: str) -> str:
+    """Конвертация валют через ExchangeRate-API"""
+    url = f"https://api.exchangerate-api.com/v4/latest/{from_cur.upper()}"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                return "Ошибка получения курса валют"
+            data = await resp.json()
+            if to_cur.upper() not in data['rates']:
+                return f"Валюта '{to_cur}' не найдена"
+            rate = data['rates'][to_cur.upper()]
+            result = amount * rate
+            return (
+                f"💱 Конвертация валют:
+"
+                f"{amount} {from_cur.upper()} = {result:.2f} {to_cur.upper()}
+"
+                f"Курс: 1 {from_cur.upper()} = {rate:.4f} {to_cur.upper()}"
+            )
 
-
-@router.message(Command("start"))
+@router.message(CommandStart)
 async def start(message: Message):
-    await message.answer("Это бот для информаций о других страннах")
-    await message.answer("Команды: \n /pogoda \n /fakt \n /escurs \n /curs")
+    await message.answer("Это бот для информации о разных странах")
+    await message.answer("Команды:
+ /pogoda - погода
+ /fakt - факты
+ /escurs - экскурсии
+ /curs - курс валют")
 
-#погода
 @router.message(Command("pogoda"))
-async def cmdo(message: Message, state: FSMContext):
-    await message.answer("Введите остров/город/село в котором хотите узнать погоду")
+async def cmd_pogoda(message: Message, state: FSMContext):
+    await message.answer("Введите город/страну, в которой хотите узнать погоду")
     await state.set_state(pogodai.strana)
 
-
 @router.message(pogodai.strana)
-async def sroko(message: Message, state: FSMContext):
-    await state.update_data(strana=message.text)
-    await message.answer("Введите срок на который нужно узнать погоду например сегодня, завтра, 3 дня и т.д")
+async def process_pogoda_strana(message: Message, state: FSMContext):
+    await state.update_data({"strana": message.text})
+    await message.answer("Введите срок (сегодня, завтра, 3 дня, 5 дней, 7 дней)")
     await state.set_state(pogodai.srok)
 
 @router.message(pogodai.srok)
-async def sroki(message: Message, state: FSMContext):
-    await state.update_data(srok=message.text)
-    data1 = await state.get_data()
-    strana = data1.get('strana')
-    srok = data1.get('srok')
-    full1 = f"Погода {strana} на {srok}"
-    await message.answer(f"Ищу {full1}")
-    result = await yandex_api(full1)
+async def process_pogoda_srok(message: Message, state: FSMContext):
+    await state.update_data({"srok": message.text})
+    data = await state.get_data()
+    strana = data.get('strana')
+    srok = data.get('srok')
+    await message.answer(f"🔍 Ищу погоду в {strana} на {srok}...")
+    result = await get_weather(strana, srok)
     await message.answer(result)
     await state.clear()
 
-
-#факт
 @router.message(Command("fakt"))
-async def md(message: Message, state: FSMContext):
-    await message.answer("Введите страну про которую хотите узнать интересный факт")
+async def cmd_fakt(message: Message, state: FSMContext):
+    await message.answer("Введите страну, про которую хотите узнать факты")
     await state.set_state(fakti.strana)
 
-
 @router.message(fakti.strana)
-async def s(message: Message, state: FSMContext):
-    await state.update_data(strana=message.text)
-    await message.answer("Введите количество интересных фактов которые хотите узнать")
+async def process_fakt_strana(message: Message, state: FSMContext):
+    await state.update_data({"strana": message.text})
+    await message.answer("Введите количество фактов (1-5)")
     await state.set_state(fakti.col)
 
 @router.message(fakti.col)
-async def r(message: Message, state: FSMContext):
-    await state.update_data(col=message.text)
-    data2 = await state.get_data()
-    strana = data2.get('strana')
-    col3 = data2.get('col')
-    full2 = f"Интересный факт про {strana} {col3} вариантов"
-    await message.answer(f"Ищу {full2}")
-    result = await yandex_api(full2)
+async def process_fakt_col(message: Message, state: FSMContext):
+    await state.update_data({"col": message.text})
+    data = await state.get_data()
+    strana = data.get('strana')
+    try:
+        col = min(int(data.get('col', 3)), 5)
+    except:
+        col = 3
+    await message.answer(f"🔍 Ищу факты о {strana}...")
+    result = await wikipedia_search(f"интересные факты о {strana}", col)
     await message.answer(result)
     await state.clear()
 
-#эскурсия
+# === ЭКСКУРСИИ ===
 @router.message(Command("escurs"))
-async def cd(message: Message, state: FSMContext):
-    await message.answer("Введите страну/область/остров и т.д в которой хотите узнать про популярные эскурсии")
+async def cmd_escurs(message: Message, state: FSMContext):
+    await message.answer("Введите страну/город для поиска экскурсий")
     await state.set_state(escursi.strana)
 
-
 @router.message(escursi.strana)
-async def sr(message: Message, state: FSMContext):
-    await state.update_data(strana=message.text)
-    await message.answer("Введите количество эскурсий")
+async def process_escurs_strana(message: Message, state: FSMContext):
+    await state.update_data({"strana": message.text})
+    await message.answer("Введите количество экскурсий (1-5)")
     await state.set_state(escursi.col)
 
-
 @router.message(escursi.col)
-async def o(message: Message, state: FSMContext):
-    await state.update_data(col=message.text)
-    data3 = await state.get_data()
-    strana = data3.get('strana')
-    col2 = data3.get('col')
-    full3 = f"Популярные эскурсии в {strana} {col2} вариантов"
-    await message.answer(f"Ищу {full3}")
-    result = await yandex_api(full3)
+async def process_escurs_col(message: Message, state: FSMContext):
+    await state.update_data({"col": message.text})
+    data = await state.get_data()
+    strana = data.get('strana')
+    try:
+        col = min(int(data.get('col', 3)), 5)
+    except:
+        col = 3
+    await message.answer(f"🔍 Ищу экскурсии в {strana}...")
+    result = await wikipedia_search(f"экскурсии в {strana} достопримечательности", col)
     await message.answer(result)
     await state.clear()
 
-#курс
+# === КУРС ВАЛЮТ ===
 @router.message(Command("curs"))
-async def md(message: Message, state: FSMContext):
-    await message.answer("Введите валюту в которую будете переводить")
+async def cmd_curs(message: Message, state: FSMContext):
+    await message.answer("Введите валюту, в которую конвертируем (например: USD, EUR, RUB)")
     await state.set_state(cursi.vala)
 
 @router.message(cursi.vala)
-async def ro(message: Message, state: FSMContext):
-    await state.update_data(vala=message.text)
-    await message.answer("Введите валюту из которой будете переводить")
+async def process_curs_vala(message: Message, state: FSMContext):
+    await state.update_data({"vala": message.text.upper()})
+    await message.answer("Введите валюту, из которой конвертируем (например: USD, EUR, RUB)")
     await state.set_state(cursi.valb)
 
 @router.message(cursi.valb)
-async def cm(message: Message, state: FSMContext):
-    await state.update_data(valb=message.text)
-    await message.answer("Введите количество которые нужно перевести")
+async def process_curs_valb(message: Message, state: FSMContext):
+    await state.update_data({"valb": message.text.upper()})
+    await message.answer("Введите сумму для конвертации")
     await state.set_state(cursi.col)
 
-
 @router.message(cursi.col)
-async def sro(message: Message, state: FSMContext):
-    await state.update_data(col=message.text)
-    data4 = await state.get_data()
-    vala = data4.get('vala')
-    valb = data4.get('valb')
-    col3 = data4.get('col')
-    full4 = f"Сколько {col3} {valb} в {vala}"
-    await message.answer(f"Ищу {full4}")
-    result = await yandex_api(full4)
+async def process_curs_col(message: Message, state: FSMContext):
+    await state.update_data({"col": message.text})
+    data = await state.get_data()
+    vala = data.get('vala')
+    valb = data.get('valb')
+    try:
+        amount = float(data.get('col', 1))
+    except:
+        amount = 1
+    await message.answer(f"🔍 Конвертирую {amount} {valb} в {vala}...")
+    result = await get_currency(amount, valb, vala)
     await message.answer(result)
     await state.clear()
