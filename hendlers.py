@@ -49,7 +49,7 @@ async def yandex_api(query: str) -> str:
 
 
 
-@router.message(CommandStart)
+@router.message(Command("start")
 async def start(message: Message):
     await message.answer("Это бот для информаций о других страннах")
     await message.answer("Команды: \n /pogoda \n /fakt \n /escurs \n /curs")
