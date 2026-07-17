@@ -63,13 +63,13 @@ async def cmdo(message: Message, state: FSMContext):
 
 @router.message(pogodai.strana)
 async def sroko(message: Message, state: FSMContext):
-    await state.set_data({"strana": message.text})
+    await state.update_data(strana=message.text)
     await message.answer("Введите срок на который нужно узнать погоду например сегодня, завтра, 3 дня и т.д")
     await state.set_state(pogodai.srok)
 
 @router.message(pogodai.srok)
 async def sroki(message: Message, state: FSMContext):
-    await state.set_data({"srok": message.text})
+    await state.update_data(srok=message.text)
     data1 = await state.get_data()
     strana = data1.get('strana')
     srok = data1.get('srok')
